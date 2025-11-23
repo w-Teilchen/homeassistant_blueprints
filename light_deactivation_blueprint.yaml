@@ -1,5 +1,5 @@
 blueprint:
-  name: Room - Turn off lights with fade and cancel on motion
+  name: Automatic light deactivation with fade-out
   description: >
     Turns off lights when there is no motion for a configurable time or when it
     is bright enough. Uses a fade-out transition, and if motion is detected
@@ -7,7 +7,7 @@ blueprint:
     Requires a motion sensor (or group), an illuminance sensor, the target
     light(s), and an input_boolean helper used as "fade out progress" flag.
   domain: automation
-  source_url: https://example.com/room_lights_off_fade_blueprint
+  source_url: https://github.com/w-Teilchen/homeassistant_blueprints/blob/main/light_deactivation_blueprint.yaml
   input:
     motion_sensor:
       name: Motion sensor or motion group
