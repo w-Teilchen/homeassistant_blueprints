@@ -1,0 +1,154 @@
+blueprint:
+  name: Room - Turn off lights with fade and cancel on motion
+  description: >
+    Turns off lights when there is no motion for a configurable time or when it
+    is bright enough. Uses a fade-out transition, and if motion is detected
+    during the fade, it cancels the fade and turns the lights back on.
+    Requires a motion sensor (or group), an illuminance sensor, the target
+    light(s), and an input_boolean helper used as "fade out progress" flag.
+  domain: automation
+  source_url: https://example.com/room_lights_off_fade_blueprint
+  input:
+    motion_sensor:
+      name: Motion sensor or motion group
+      description: >
+        Binary_sensor that is ON when there is motion in the room (can be a group
+        of multiple motion sensors).
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+
+    illuminance_sensor:
+      name: Illuminance sensor
+      description: >
+        Sensor providing the room brightness in lux. If you have multiple sensors,
+        create a template or min/avg helper sensor and use that here.
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+
+    target_lights:
+      name: Lights to control
+      description: >
+        Light or light group that should be turned off with a fade.
+      selector:
+        target:
+          entity:
+            domain: light
+
+    fade_flag:
+      name: Fade-out-progress flag (input_boolean)
+      description: >
+        Input_boolean helper used internally to mark when an automatic fade-out
+        is in progress. Create one helper per room and assign it here.
+      selector:
+        entity:
+          domain: input_boolean
+
+    delay:
+      name: Delay before fading out the lights after no motion or enough brightness
+      description: >
+        How long there must be no motion before starting a fade-out.
+      default: 00:01:00
+      selector:
+        duration: {}
+
+    brightness_threshold:
+      name: Brightness threshold (lux)
+      description: >
+        When illuminance rises above this value, the lights will start to fade off.
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 1000
+          step: 1
+          unit_of_measurement: lux
+          mode: slider
+
+    off_transition:
+      name: Off transition (seconds)
+      description: >
+        Duration of the fade-out when turning the lights off.
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 300
+          step: 1
+          unit_of_measurement: seconds
+          mode: slider
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  # 1) When there were no motion for the configured time
+  - platform: state
+    entity_id: !input motion_sensor
+    to: "off"
+    for: !input delay
+    id: no_motion
+
+  # 2) When it becomes bright enough
+  - platform: numeric_state
+    entity_id: !input illuminance_sensor
+    above: !input brightness_threshold
+    for: !input delay
+    id: bright
+
+  # 3) Motion detected (used only to cancel fades)
+  - platform: state
+    entity_id: !input motion_sensor
+    to: "on"
+    id: motion
+
+condition: []
+
+action:
+  - choose:
+      # --- CASE 1: Start fade because of no motion or brightness ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id in ['no_motion', 'bright'] }}"
+        sequence:
+          # Mark that an automatic fade-out is in progress
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input fade_flag
+
+          # Start fading out the lights
+          - service: light.turn_off
+            target: !input target_lights
+            data:
+              transition: !input off_transition
+
+          # After the transition time, clear the flag
+          - delay:
+              seconds: !input off_transition
+
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input fade_flag
+
+      # --- CASE 2: Motion while fade-in-progress -> cancel fade & turn lights back on ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'motion' }}"
+          - condition: state
+            entity_id: !input fade_flag
+            state: "on"
+        sequence:
+          # Clear the fade flag
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input fade_flag
+
+          # Turn lights back on (override ongoing fade)
+          - service: light.turn_on
+            target: !input target_lights
+
+  # Default: do nothing
+  - choose: []
