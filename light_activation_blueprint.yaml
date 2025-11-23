@@ -1,0 +1,223 @@
+blueprint:
+  name: Automatic scene activation based on motion and illuminance
+  description: >
+    Turns on lights when there is motion and it is dark enough, or when it
+    becomes dark while motion is detected. Chooses a scene based on time of
+    day (day / night / inbetween). Optionally only activates if a given
+    light (or light group) is currently off.
+  domain: automation
+  source_url: https://github.com/w-Teilchen/homeassistant_blueprints/blob/main/light_activation_blueprint.yaml
+
+  input:
+    motion_sensor:
+      name: Motion sensor or motion group
+      description: >
+        Binary sensor that is ON when there is motion in the room.
+        This can also be a binary_sensor group.
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: occupancy
+
+    illuminance_sensor:
+      name: Illuminance sensor
+      description: >
+        Sensor providing room brightness in lux. If you have multiple sensors,
+        use a template / helper that combines them and select it here.
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+
+    target_lights:
+      name: Lights to control
+      description: >
+        Light or light group that should be turned on via scenes.
+      selector:
+        target:
+          entity:
+            domain: light
+
+    state_check_light:
+      name: Light to check for "only if off"
+      description: >
+        Single light or light group used to check if the lights are currently
+        off. Typically this is the same group you actually control. Required
+        if "Only if lights are off" is enabled.
+      selector:
+        entity:
+          domain: light
+
+    only_if_lights_off:
+      name: Only if lights are off
+      description: >
+        If enabled, the automation will only run when the state_check_light
+        is currently off. If disabled, it will always run when triggered.
+      default: true
+      selector:
+        boolean: {}
+
+    dark_threshold:
+      name: Dark threshold (lux)
+      description: >
+        When illuminance is below this value, the room is considered dark.
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          unit_of_measurement: lux
+          mode: slider
+
+    on_transition:
+      name: On transition (seconds)
+      description: >
+        Fade-in duration when turning on scenes.
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 1
+          unit_of_measurement: seconds
+          mode: slider
+
+    day_scene:
+      name: Day scene
+      description: >
+        Scene to activate during daytime (between day_start_time and day_end_time).
+      selector:
+        entity:
+          domain: scene
+
+    night_scene:
+      name: Night scene
+      description: >
+        Scene to activate during the night.
+      selector:
+        entity:
+          domain: scene
+
+    inbetween_scene:
+      name: Inbetween scene
+      description: >
+        When it is neither day nor night.
+      selector:
+        entity:
+          domain: scene
+
+    day_start_time:
+      name: Day start time
+      description: >
+        Start of daytime window (used for the day_scene).
+      default: "06:30:00"
+      selector:
+        time: {}
+
+    day_end_time:
+      name: Day end time
+      description: >
+        End of daytime window (used for the day_scene).
+      default: "20:00:00"
+      selector:
+        time: {}
+
+    night_start_time:
+      name: Night start time
+      description: >
+        Start of the night window (used for the night_scene).
+      default: "23:00:00"
+      selector:
+        time: {}
+
+    night_end_time:
+      name: Night end time
+      description: >
+        End of the night window (used for the night_scene).
+      default: "05:30:00"
+      selector:
+        time: {}
+
+variables:
+  only_if_lights_off_var: !input only_if_lights_off
+  state_light: !input state_check_light
+
+mode: single
+
+trigger:
+  # 1) Motion starts
+  - platform: state
+    entity_id: !input motion_sensor
+    to: "on"
+    id: motion
+
+  # 2) It becomes dark enough
+  - platform: numeric_state
+    entity_id: !input illuminance_sensor
+    below: !input dark_threshold
+    id: dark
+
+condition:
+  # Must be dark enough
+  - condition: numeric_state
+    entity_id: !input illuminance_sensor
+    below: !input dark_threshold
+
+  # Must have motion currently
+  - condition: state
+    entity_id: !input motion_sensor
+    state: "on"
+
+  # Optional: only if lights (group) are off
+  - condition: template
+    value_template: >
+      {% if only_if_lights_off_var %}
+        {{ is_state(state_light, 'off') }}
+      {% else %}
+        true
+      {% endif %}
+
+action:
+  - choose:
+      # Daytime: between day_start and day_end -> day_scene
+      - conditions:
+          - condition: time
+            after: !input day_start_time
+            before: !input day_end_time
+        sequence:
+          - service: scene.turn_on
+            target:
+              entity_id: !input day_scene
+            data:
+              transition: !input on_transition
+
+      # Very early: before night_end_time -> night_scene
+      - conditions:
+          - condition: time
+            before: !input night_end_time
+        sequence:
+          - service: scene.turn_on
+            target:
+              entity_id: !input night_scene
+            data:
+              transition: !input on_transition
+
+      # Very late: after night_start_time -> night_scene
+      - conditions:
+          - condition: time
+            after: !input night_start_time
+        sequence:
+          - service: scene.turn_on
+            target:
+              entity_id: !input night_scene
+            data:
+              transition: !input on_transition
+
+    # Default: all other times -> inbetween_scene
+    default:
+      - service: scene.turn_on
+        target:
+          entity_id: !input inbetween_scene
+        data:
+          transition: !input on_transition
