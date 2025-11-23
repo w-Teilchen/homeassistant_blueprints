@@ -73,7 +73,7 @@ blueprint:
       name: Off transition (seconds)
       description: >
         Duration of the fade-out when turning the lights off.
-      default: 30
+      default: 10
       selector:
         number:
           min: 0
