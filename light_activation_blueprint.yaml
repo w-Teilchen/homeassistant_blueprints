@@ -91,6 +91,14 @@ blueprint:
         entity:
           domain: scene
 
+    dawn_and_dusk_scene:
+      name: Scene for times inbetween day and night
+      description: >
+        When it is neither day nor night.
+      selector:
+        entity:
+          domain: scene
+
     night_scene:
       name: Night scene
       description: >
@@ -99,13 +107,13 @@ blueprint:
         entity:
           domain: scene
 
-    inbetween_scene:
-      name: Inbetween scene
+    night_end_time:
+      name: Night end time
       description: >
-        When it is neither day nor night.
+        End of the night window (used for the night_scene).
+      default: "05:30:00"
       selector:
-        entity:
-          domain: scene
+        time: {}
 
     day_start_time:
       name: Day start time
@@ -128,14 +136,6 @@ blueprint:
       description: >
         Start of the night window (used for the night_scene).
       default: "23:00:00"
-      selector:
-        time: {}
-
-    night_end_time:
-      name: Night end time
-      description: >
-        End of the night window (used for the night_scene).
-      default: "05:30:00"
       selector:
         time: {}
 
