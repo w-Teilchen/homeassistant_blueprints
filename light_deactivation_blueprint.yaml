@@ -7,7 +7,8 @@ blueprint:
     Requires a motion sensor (or group), an illuminance sensor, the target
     light(s), and an input_boolean helper used as "fade out progress" flag.
   domain: automation
-  source_url: https://github.com/w-Teilchen/homeassistant_blueprints/blob/main/light_deactivation_blueprint.yaml
+  source_url: https://raw.githubusercontent.com/w-Teilchen/homeassistant_blueprints/refs/heads/main/light_activation_blueprint.yaml
+  
   input:
     motion_sensor:
       name: Motion sensor or motion group

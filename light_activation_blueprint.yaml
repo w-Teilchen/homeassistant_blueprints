@@ -6,7 +6,7 @@ blueprint:
     day (day / night / inbetween). Optionally only activates if a given
     light (or light group) is currently off.
   domain: automation
-  source_url: https://github.com/w-Teilchen/homeassistant_blueprints/blob/main/light_activation_blueprint.yaml
+  source_url: https://raw.githubusercontent.com/w-Teilchen/homeassistant_blueprints/refs/heads/main/light_activation_blueprint.yaml
 
   input:
     motion_sensor:
@@ -110,7 +110,7 @@ blueprint:
     night_end_time:
       name: Night end time
       description: >
-        End of the night window (used for the night_scene).
+        End of the night window (before this time the night scene is active).
       default: "05:30:00"
       selector:
         time: {}
@@ -134,7 +134,7 @@ blueprint:
     night_start_time:
       name: Night start time
       description: >
-        Start of the night window (used for the night_scene).
+        Start of the night window (after this time the night scene is active).
       default: "23:00:00"
       selector:
         time: {}
