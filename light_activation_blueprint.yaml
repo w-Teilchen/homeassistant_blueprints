@@ -29,15 +29,6 @@ blueprint:
           domain: sensor
           device_class: illuminance
 
-    target_lights:
-      name: Lights to control
-      description: >
-        Light or light group that should be turned on via scenes.
-      selector:
-        target:
-          entity:
-            domain: light
-
     state_check_light:
       name: Light to check for "only if off"
       description: >
@@ -139,9 +130,22 @@ blueprint:
       selector:
         time: {}
 
+    fade_flag:
+      name: Fade-out-progress flag (input_boolean)
+      description: >
+        Input_boolean helper that indicates when an automatic fade-out is in
+        progress. This allows the automation to re-activate lights if motion
+        is detected during a fade-out. Use the same helper as in the
+        deactivation blueprint.
+      default: input_boolean.none
+      selector:
+        entity:
+          domain: input_boolean
+
 variables:
   only_if_lights_off_var: !input only_if_lights_off
   state_light: !input state_check_light
+  fade_flag_entity: !input fade_flag
 
 mode: single
 
@@ -169,10 +173,15 @@ condition:
     entity_id: !input motion_sensor
     state: "on"
 
-  # Optional: only if lights (group) are off
+  # Allow activation if:
+  # - fade_flag is on (re-activation during fade-out), OR
+  # - lights are off (if only_if_lights_off is enabled), OR
+  # - only_if_lights_off is disabled
   - condition: template
     value_template: >
-      {% if only_if_lights_off_var %}
+      {% if fade_flag_entity != 'input_boolean.none' and is_state(fade_flag_entity, 'on') %}
+        true
+      {% elif only_if_lights_off_var %}
         {{ is_state(state_light, 'off') }}
       {% else %}
         true
