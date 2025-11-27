@@ -98,6 +98,10 @@ blueprint:
           unit_of_measurement: seconds
           mode: slider
 
+variables:
+  off_transition: !input off_transition
+  fade_flag_buffer: !input fade_flag_buffer
+
 mode: restart
 max_exceeded: silent
 
