@@ -21,34 +21,6 @@ blueprint:
           domain: binary_sensor
           device_class: occupancy
 
-    illuminance_sensor:
-      name: Illuminance sensor
-      description: >
-        Sensor providing the room brightness in lux. If you have multiple sensors,
-        create a template or min/avg helper sensor and use that here.
-      selector:
-        entity:
-          domain: sensor
-          device_class: illuminance
-
-    target_lights:
-      name: Lights to control
-      description: >
-        Light or light group that should be turned off with a fade.
-      selector:
-        target:
-          entity:
-            domain: light
-
-    fade_flag:
-      name: Fade-out-progress flag (input_boolean)
-      description: >
-        Input_boolean helper used internally to mark when an automatic fade-out
-        is in progress. Create one helper per room and assign it here.
-      selector:
-        entity:
-          domain: input_boolean
-
     delay:
       name: Delay before fading out the lights after no motion or enough brightness
       description: >
@@ -56,6 +28,16 @@ blueprint:
       default: 00:01:00
       selector:
         duration: {}
+
+    illuminance_sensor:
+      name: Illuminance sensor
+      description: >
+        Sensor providing the room brightness in lux. If you want to use multiple
+        sensors, create a template or min/avg helper sensor and use that here.
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
 
     brightness_threshold:
       name: Brightness threshold (lux)
@@ -69,6 +51,35 @@ blueprint:
           step: 1
           unit_of_measurement: lux
           mode: slider
+
+    fade_flag:
+      name: Fade-out-progress flag (input_boolean)
+      description: >
+        Input_boolean helper used internally to mark when an automatic fade-out
+        is in progress. Create one helper per room and assign it here.
+      selector:
+        entity:
+          domain: input_boolean
+
+    snapshot_scene:
+      name: Snapshot scene ID
+      description: >
+        A unique scene ID (e.g., "snapshot_living_room") used to capture the
+        current light states before fading out. This allows the activation
+        blueprint to restore the exact light states if they are turned on again
+        shortly after the fade.
+      default: snapshot_room
+      selector:
+        text: {}
+
+    target_lights:
+      name: Lights to snapshot and control
+      description: >
+        Light or light group that should be snapshot.
+      selector:
+        target:
+          entity:
+            domain: light
 
     off_transition:
       name: Off transition (seconds)
@@ -123,31 +134,29 @@ trigger:
 condition: []
 
 action:
-  - choose:
-      # --- CASE 1: Start fade because of no motion or brightness ---
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.id in ['no_motion', 'bright'] }}"
-        sequence:
-          # Mark that an automatic fade-out is in progress
-          - service: input_boolean.turn_on
-            target:
-              entity_id: !input fade_flag
+  # Capture the current light states as a snapshot scene
+  - service: scene.create
+    data:
+      scene_id: !input snapshot_scene
+      snapshot_entities: !input target_lights
 
-          # Start fading out the lights
-          - service: light.turn_off
-            target: !input target_lights
-            data:
-              transition: !input off_transition
+  # Mark that an automatic fade-out is in progress
+  - service: input_boolean.turn_on
+    target:
+      entity_id: !input fade_flag
 
-          # Wait for transition + buffer time before clearing the flag
-          # This allows the activation blueprint to re-activate lights
-          # if motion is detected during or shortly after the fade
-          - delay:
-              seconds: "{{ (off_transition | int) + (fade_flag_buffer | int) }}"
+  # Start fading out the lights
+  - service: light.turn_off
+    target: !input target_lights
+    data:
+      transition: !input off_transition
 
-          - service: input_boolean.turn_off
-            target:
-              entity_id: !input fade_flag
+  # Wait for transition + buffer time before clearing the flag
+  # This allows the activation blueprint to re-activate lights
+  # if motion is detected during or shortly after the fade
+  - delay:
+      seconds: "{{ (off_transition | int) + (fade_flag_buffer | int) }}"
 
-  # Default: do nothing (motion during fade is handled by activation blueprint)
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input fade_flag

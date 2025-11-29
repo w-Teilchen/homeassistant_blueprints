@@ -142,10 +142,21 @@ blueprint:
         entity:
           domain: input_boolean
 
+    snapshot_scene:
+      name: Snapshot scene ID
+      description: >
+        The same scene ID used in the deactivation blueprint (e.g., 
+        "snapshot_living_room"). When re-activating during a fade-out,
+        this scene will be used to restore the exact light states.
+      default: snapshot_room
+      selector:
+        text: {}
+
 variables:
   only_if_lights_off_var: !input only_if_lights_off
   state_light: !input state_check_light
   fade_flag_entity: !input fade_flag
+  snapshot_scene_id: !input snapshot_scene
 
 mode: single
 
@@ -189,6 +200,18 @@ condition:
 
 action:
   - choose:
+      # Re-activation during fade-out: restore the snapshot scene
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ fade_flag_entity != 'input_boolean.none' and is_state(fade_flag_entity, 'on') }}
+        sequence:
+          - service: scene.turn_on
+            target:
+              entity_id: "scene.{{ snapshot_scene_id }}"
+            data:
+              transition: !input on_transition
+
       # Daytime: between day_start and day_end -> day_scene
       - conditions:
           - condition: time
