@@ -21,11 +21,19 @@ blueprint:
           domain: binary_sensor
           device_class: occupancy
 
-    delay:
-      name: Delay before fading out the lights after no motion or enough brightness
+    no_motion_delay:
+      name: Delay before fading out after no motion
       description: >
         How long there must be no motion before starting a fade-out.
       default: 00:01:00
+      selector:
+        duration: {}
+
+    bright_delay:
+      name: Delay before fading out after it is bright enough
+      description: >
+        How long illuminance must stay above the threshold before starting a fade-out.
+      default: 00:00:30
       selector:
         duration: {}
 
@@ -117,18 +125,18 @@ mode: restart
 max_exceeded: silent
 
 trigger:
-  # 1) When there were no motion for the configured time
+  # 1) When there was no motion for the configured time
   - platform: state
     entity_id: !input motion_sensor
     to: "off"
-    for: !input delay
+    for: !input no_motion_delay
     id: no_motion
 
   # 2) When it becomes bright enough
   - platform: numeric_state
     entity_id: !input illuminance_sensor
     above: !input brightness_threshold
-    for: !input delay
+    for: !input bright_delay
     id: bright
 
 condition:
