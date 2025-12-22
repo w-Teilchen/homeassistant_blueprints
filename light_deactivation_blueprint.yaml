@@ -2,11 +2,9 @@ blueprint:
   name: Automatic light deactivation with fade-out
   description: >
     Turns off lights when there is no motion for a configurable time or when it
-    is bright enough. Uses a fade-out transition. If motion is detected during
-    the fade, the activation blueprint will re-activate the lights using the
-    appropriate scene (via the fade_flag). Requires a motion sensor (or group),
-    an illuminance sensor, the target light(s), and an input_boolean helper
-    used as "fade out progress" flag.
+    is bright enough. Uses a fade-out transition. Requires a motion sensor (or group),
+    an illuminance sensor, the target light(s), and an input_datetime helper used to
+    store the last time the lights were changed.
   domain: automation
   source_url: https://raw.githubusercontent.com/w-Teilchen/homeassistant_blueprints/refs/heads/main/light_deactivation_blueprint.yaml
   
@@ -60,15 +58,6 @@ blueprint:
           unit_of_measurement: lux
           mode: slider
 
-    fade_flag:
-      name: Fade-out-progress flag (input_boolean)
-      description: >
-        Input_boolean helper used internally to mark when an automatic fade-out
-        is in progress. Create one helper per room and assign it here.
-      selector:
-        entity:
-          domain: input_boolean
-
     snapshot_scene:
       name: Snapshot scene ID
       description: >
@@ -117,6 +106,17 @@ blueprint:
           unit_of_measurement: seconds
           mode: slider
 
+    last_light_change_timestamp:
+      name: Last light change timestamp (input_datetime)
+      description: >
+        Input_datetime helper updated whenever this blueprint changes the lights
+        (turning them off). This can be used by the activation blueprint to decide
+        whether the snapshot scene should be restored within a configurable time
+        window.
+      selector:
+        entity:
+          domain: input_datetime
+
 variables:
   off_transition: !input off_transition
   fade_flag_buffer: !input fade_flag_buffer
@@ -161,23 +161,15 @@ action:
       scene_id: !input snapshot_scene
       snapshot_entities: "{{ target_light_entity_ids }}"
 
-  # Mark that an automatic fade-out is in progress
-  - service: input_boolean.turn_on
+  # Store the time of this automatic light change (used for restore window logic)
+  - service: input_datetime.set_datetime
     target:
-      entity_id: !input fade_flag
+      entity_id: !input last_light_change_timestamp
+    data:
+      datetime: "{{ now().isoformat() }}"
 
   # Start fading out the lights
   - service: light.turn_off
     target: !input target_lights
     data:
       transition: !input off_transition
-
-  # Wait for transition + buffer time before clearing the flag
-  # This allows the activation blueprint to re-activate lights
-  # if motion is detected during or shortly after the fade
-  - delay:
-      seconds: "{{ (off_transition | int) + (fade_flag_buffer | int) }}"
-
-  - service: input_boolean.turn_off
-    target:
-      entity_id: !input fade_flag

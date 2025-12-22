@@ -130,33 +130,48 @@ blueprint:
       selector:
         time: {}
 
-    fade_flag:
-      name: Fade-out-progress flag (input_boolean)
-      description: >
-        Input_boolean helper that indicates when an automatic fade-out is in
-        progress. This allows the automation to re-activate lights if motion
-        is detected during a fade-out. Use the same helper as in the
-        deactivation blueprint.
-      default: input_boolean.none
-      selector:
-        entity:
-          domain: input_boolean
-
     snapshot_scene:
       name: Snapshot scene ID
       description: >
-        The same scene ID used in the deactivation blueprint (e.g., 
-        "snapshot_living_room"). When re-activating during a fade-out,
-        this scene will be used to restore the exact light states.
+        The same scene ID used in the deactivation blueprint (e.g.,
+        "snapshot_living_room"). When restoring because the lights were changed
+        recently, this scene will be used to restore the exact light states.
       default: snapshot_room
       selector:
         text: {}
 
+    last_light_change_timestamp:
+      name: Last light change timestamp (input_datetime)
+      description: >
+        Same input_datetime helper as used in the deactivation blueprint.
+        It is updated whenever the light changes.
+        If the last light change happened recently, the snapshot scene can be restored
+        instead of selecting a day/night scene.
+      default: input_datetime.none
+      selector:
+        entity:
+          domain: input_datetime
+
+    restore_window:
+      name: Snapshot restore window (minutes)
+      description: >
+        If motion triggers within this many minutes after the last auto-off,
+        restore the snapshot scene.
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 120
+          step: 1
+          unit_of_measurement: minutes
+          mode: slider
+
 variables:
   only_if_lights_off_var: !input only_if_lights_off
   state_light: !input state_check_light
-  fade_flag_entity: !input fade_flag
   snapshot_scene_id: !input snapshot_scene
+  last_light_change_ts_entity: !input last_light_change_timestamp
+  restore_window_min: !input restore_window
 
 mode: single
 
@@ -185,14 +200,11 @@ condition:
     state: "on"
 
   # Allow activation if:
-  # - fade_flag is on (re-activation during fade-out), OR
   # - lights are off (if only_if_lights_off is enabled), OR
   # - only_if_lights_off is disabled
   - condition: template
     value_template: >
-      {% if fade_flag_entity != 'input_boolean.none' and is_state(fade_flag_entity, 'on') %}
-        true
-      {% elif only_if_lights_off_var %}
+      {% if only_if_lights_off_var %}
         {{ is_state(state_light, 'off') }}
       {% else %}
         true
@@ -200,17 +212,29 @@ condition:
 
 action:
   - choose:
-      # Re-activation during fade-out: restore the snapshot scene
+      # Restore snapshot if the last light change is recent enough
       - conditions:
           - condition: template
             value_template: >
-              {{ fade_flag_entity != 'input_boolean.none' and is_state(fade_flag_entity, 'on') }}
+              {% if last_light_change_ts_entity != 'input_datetime.none' %}
+                {% set last = states(last_light_change_ts_entity) %}
+                {% set mins = restore_window_min | int(0) %}
+                {{ mins > 0 and last not in ['unknown','unavailable','none','']
+                   and (as_timestamp(now()) - as_timestamp(last)) < (mins * 60) }}
+              {% else %}
+                false
+              {% endif %}
         sequence:
           - service: scene.turn_on
             target:
               entity_id: "scene.{{ snapshot_scene_id }}"
             data:
               transition: !input on_transition
+          - service: input_datetime.set_datetime
+            target:
+              entity_id: !input last_light_change_timestamp
+            data:
+              datetime: "{{ now().isoformat() }}"
 
       # Daytime: between day_start and day_end -> day_scene
       - conditions:
@@ -223,6 +247,11 @@ action:
               entity_id: !input day_scene
             data:
               transition: !input on_transition
+          - service: input_datetime.set_datetime
+            target:
+              entity_id: !input last_light_change_timestamp
+            data:
+              datetime: "{{ now().isoformat() }}"
 
       # Very early: before night_end_time -> night_scene
       - conditions:
@@ -234,6 +263,11 @@ action:
               entity_id: !input night_scene
             data:
               transition: !input on_transition
+          - service: input_datetime.set_datetime
+            target:
+              entity_id: !input last_light_change_timestamp
+            data:
+              datetime: "{{ now().isoformat() }}"
 
       # Very late: after night_start_time -> night_scene
       - conditions:
@@ -245,6 +279,11 @@ action:
               entity_id: !input night_scene
             data:
               transition: !input on_transition
+          - service: input_datetime.set_datetime
+            target:
+              entity_id: !input last_light_change_timestamp
+            data:
+              datetime: "{{ now().isoformat() }}"
 
     # Default: all other times -> dawn_and_dusk_scene
     default:
@@ -253,3 +292,8 @@ action:
           entity_id: !input dawn_and_dusk_scene
         data:
           transition: !input on_transition
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: !input last_light_change_timestamp
+        data:
+          datetime: "{{ now().isoformat() }}"
