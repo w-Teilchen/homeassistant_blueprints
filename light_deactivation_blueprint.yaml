@@ -131,7 +131,14 @@ trigger:
     for: !input delay
     id: bright
 
-condition: []
+condition:
+  # Only run if at least one of the targeted light entities is currently on
+  - condition: template
+    value_template: >
+      {{ expand((!input target_lights).entity_id)
+         | selectattr('state', 'eq', 'on')
+         | list
+         | count > 0 }}
 
 action:
   # Capture the current light states as a snapshot scene
