@@ -140,6 +140,11 @@ condition:
          | list
          | count > 0 }}
 
+  # Avoid fading out if motion returned right before the action runs
+  - condition: state
+    entity_id: !input motion_sensor
+    state: "off"
+
 action:
   # Capture the current light states as a snapshot scene
   - service: scene.create
