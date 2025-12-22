@@ -120,6 +120,10 @@ blueprint:
 variables:
   off_transition: !input off_transition
   fade_flag_buffer: !input fade_flag_buffer
+  target_lights_input: !input target_lights
+  target_light_entity_ids: >
+    {% set ids = target_lights_input.entity_id if (target_lights_input is defined and target_lights_input.entity_id is defined) else target_lights_input %}
+    {{ ids if ids is list else ([ids] if ids is string else []) }}
 
 mode: restart
 max_exceeded: silent
@@ -143,10 +147,7 @@ condition:
   # Only run if at least one of the targeted light entities is currently on
   - condition: template
     value_template: >
-      {{ expand((!input target_lights).entity_id)
-         | selectattr('state', 'eq', 'on')
-         | list
-         | count > 0 }}
+      {{ target_light_entity_ids | select('is_state', 'on') | list | count > 0 }}
 
   # Avoid fading out if motion returned right before the action runs
   - condition: state
@@ -158,7 +159,7 @@ action:
   - service: scene.create
     data:
       scene_id: !input snapshot_scene
-      snapshot_entities: !input target_lights
+      snapshot_entities: "{{ target_light_entity_ids }}"
 
   # Mark that an automatic fade-out is in progress
   - service: input_boolean.turn_on
