@@ -166,12 +166,30 @@ blueprint:
           unit_of_measurement: minutes
           mode: slider
 
+    recent_change_grace:
+      name: Recent-change grace period (seconds)
+      description: >
+        If the lights were changed very recently (by either blueprint), allow activation
+        even if the illuminance is still above the dark threshold (e.g., while lights
+        are fading out).
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 1
+          unit_of_measurement: seconds
+          mode: slider
+
 variables:
   only_if_lights_off_var: !input only_if_lights_off
   state_light: !input state_check_light
   snapshot_scene_id: !input snapshot_scene
   last_light_change_ts_entity: !input last_light_change_timestamp
   restore_window_min: !input restore_window
+  recent_change_grace_s: !input recent_change_grace
+  illuminance_entity: !input illuminance_sensor
+  dark_threshold_value: !input dark_threshold
 
 mode: single
 
@@ -189,10 +207,14 @@ trigger:
     id: dark
 
 condition:
-  # Must be dark enough
-  - condition: numeric_state
-    entity_id: !input illuminance_sensor
-    below: !input dark_threshold
+  # Must be dark enough (or we are within the recent-change grace period)
+  - condition: template
+    value_template: >
+      {% set last = states(last_light_change_ts_entity) if last_light_change_ts_entity != 'input_datetime.none' else 'unknown' %}
+      {% set grace = recent_change_grace_s | int(0) %}
+      {% set recent = grace > 0 and last not in ['unknown','unavailable','none','']
+         and (as_timestamp(now()) - as_timestamp(last)) < grace %}
+      {{ (states(illuminance_entity) | float(0)) < (dark_threshold_value | float(30)) or recent }}
 
   # Must have motion currently
   - condition: state
