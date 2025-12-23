@@ -29,6 +29,74 @@ blueprint:
           domain: sensor
           device_class: illuminance
 
+    # --- Scene selections ---
+    day_scene:
+      name: Day scene
+      description: >
+        Scene to activate during daytime (between day_start_time and day_end_time).
+      selector:
+        entity:
+          domain: scene
+
+    dawn_and_dusk_scene:
+      name: Scene for times inbetween day and night
+      description: >
+        When it is neither day nor night.
+      selector:
+        entity:
+          domain: scene
+
+    night_scene:
+      name: Night scene
+      description: >
+        Scene to activate during the night.
+      selector:
+        entity:
+          domain: scene
+
+    snapshot_scene:
+      name: Snapshot scene (scene entity)
+      description: >
+        Same scene entity as used in the deactivation blueprint. It is overwritten
+        on each auto-off run to store a snapshot of current light states.
+      selector:
+        entity:
+          domain: scene
+
+    # --- Time windows ---
+    night_end_time:
+      name: Night end time
+      description: >
+        End of the night window (before this time the night scene is active).
+      default: "05:30:00"
+      selector:
+        time: {}
+
+    day_start_time:
+      name: Day start time
+      description: >
+        Start of daytime window (used for the day_scene).
+      default: "06:30:00"
+      selector:
+        time: {}
+
+    day_end_time:
+      name: Day end time
+      description: >
+        End of daytime window (used for the day_scene).
+      default: "20:00:00"
+      selector:
+        time: {}
+
+    night_start_time:
+      name: Night start time
+      description: >
+        Start of the night window (after this time the night scene is active).
+      default: "23:00:00"
+      selector:
+        time: {}
+
+    # --- Conditions / behavior ---
     state_check_light:
       name: Light to check for "only if off"
       description: >
@@ -74,71 +142,7 @@ blueprint:
           unit_of_measurement: seconds
           mode: slider
 
-    day_scene:
-      name: Day scene
-      description: >
-        Scene to activate during daytime (between day_start_time and day_end_time).
-      selector:
-        entity:
-          domain: scene
-
-    dawn_and_dusk_scene:
-      name: Scene for times inbetween day and night
-      description: >
-        When it is neither day nor night.
-      selector:
-        entity:
-          domain: scene
-
-    night_scene:
-      name: Night scene
-      description: >
-        Scene to activate during the night.
-      selector:
-        entity:
-          domain: scene
-
-    night_end_time:
-      name: Night end time
-      description: >
-        End of the night window (before this time the night scene is active).
-      default: "05:30:00"
-      selector:
-        time: {}
-
-    day_start_time:
-      name: Day start time
-      description: >
-        Start of daytime window (used for the day_scene).
-      default: "06:30:00"
-      selector:
-        time: {}
-
-    day_end_time:
-      name: Day end time
-      description: >
-        End of daytime window (used for the day_scene).
-      default: "20:00:00"
-      selector:
-        time: {}
-
-    night_start_time:
-      name: Night start time
-      description: >
-        Start of the night window (after this time the night scene is active).
-      default: "23:00:00"
-      selector:
-        time: {}
-
-    snapshot_scene:
-      name: Snapshot scene (scene entity)
-      description: >
-        Same scene entity as used in the deactivation blueprint. It is overwritten
-        on each auto-off run to store a snapshot of current light states.
-      selector:
-        entity:
-          domain: scene
-
+    # --- Restore / grace helpers ---
     last_light_change_timestamp:
       name: Last light change timestamp (input_datetime)
       description: >

@@ -19,6 +19,36 @@ blueprint:
           domain: binary_sensor
           device_class: occupancy
 
+    illuminance_sensor:
+      name: Illuminance sensor
+      description: >
+        Sensor providing the room brightness in lux. If you want to use multiple
+        sensors, create a template or min/avg helper sensor and use that here.
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+
+    target_lights:
+      name: Lights to snapshot and control
+      description: >
+        Light or light group that should be snapshot.
+      selector:
+        target:
+          entity:
+            domain: light
+
+    snapshot_scene:
+      name: Snapshot scene (scene entity)
+      description: >
+        An existing scene entity that will be overwritten on each run to store a
+        snapshot of the current light states. This makes it easier to inspect/debug
+        the snapshot via the UI.
+      selector:
+        entity:
+          domain: scene
+
+    # --- Timing / thresholds ---
     no_motion_delay:
       name: Delay before fading out after no motion
       description: >
@@ -35,16 +65,6 @@ blueprint:
       selector:
         duration: {}
 
-    illuminance_sensor:
-      name: Illuminance sensor
-      description: >
-        Sensor providing the room brightness in lux. If you want to use multiple
-        sensors, create a template or min/avg helper sensor and use that here.
-      selector:
-        entity:
-          domain: sensor
-          device_class: illuminance
-
     brightness_threshold:
       name: Brightness threshold (lux)
       description: >
@@ -58,25 +78,7 @@ blueprint:
           unit_of_measurement: lux
           mode: slider
 
-    snapshot_scene:
-      name: Snapshot scene (scene entity)
-      description: >
-        An existing scene entity that will be overwritten on each run to store a
-        snapshot of the current light states. This makes it easier to inspect/debug
-        the snapshot via the UI.
-      selector:
-        entity:
-          domain: scene
-
-    target_lights:
-      name: Lights to snapshot and control
-      description: >
-        Light or light group that should be snapshot.
-      selector:
-        target:
-          entity:
-            domain: light
-
+    # --- Transitions ---
     off_transition:
       name: Off transition (seconds)
       description: >
@@ -90,21 +92,7 @@ blueprint:
           unit_of_measurement: seconds
           mode: slider
 
-    fade_flag_buffer:
-      name: Fade flag buffer time (seconds)
-      description: >
-        Extra time to keep the fade flag on after the fade-out completes.
-        This ensures the activation blueprint can re-activate lights even
-        if motion is detected slightly after the fade ends.
-      default: 5
-      selector:
-        number:
-          min: 0
-          max: 30
-          step: 1
-          unit_of_measurement: seconds
-          mode: slider
-
+    # --- Helpers ---
     last_light_change_timestamp:
       name: Last light change timestamp (input_datetime)
       description: >
