@@ -106,7 +106,6 @@ blueprint:
 
 variables:
   off_transition: !input off_transition
-  fade_flag_buffer: !input fade_flag_buffer
   target_lights_input: !input target_lights
   snapshot_scene_entity: !input snapshot_scene
   target_light_entity_ids: >
@@ -147,7 +146,7 @@ action:
   - service: scene.create
     data:
       scene_id: "{{ snapshot_scene_entity.split('.', 1)[1] }}"
-      snapshot_entities: "{{ target_light_entity_ids }}"
+      snapshot_entities: {{ target_light_entity_ids }}
 
   # Store the time of this automatic light change (used for restore window logic)
   - service: input_datetime.set_datetime
