@@ -38,15 +38,15 @@ blueprint:
           entity:
             domain: light
 
-    snapshot_scene:
-      name: Snapshot scene (scene entity)
+    snapshot_scene_id_helper:
+      name: Snapshot scene id helper (input_text)
       description: >
-        An existing scene entity that will be overwritten on each run to store a
-        snapshot of the current light states. This makes it easier to inspect/debug
-        the snapshot via the UI.
+        Select an input_text helper that contains the object_id (slug) of the runtime
+        snapshot scene to create/overwrite (e.g. "living_room_last_scene").
+        Use the same helper in the activation blueprint.
       selector:
         entity:
-          domain: scene
+          domain: input_text
 
     # --- Timing / thresholds ---
     no_motion_delay:
@@ -107,9 +107,12 @@ blueprint:
 variables:
   off_transition: !input off_transition
   target_lights_input: !input target_lights
-  snapshot_scene_entity: !input snapshot_scene
+  snapshot_scene_id_helper_entity: !input snapshot_scene_id_helper
+  snapshot_scene_id: "{{ states(snapshot_scene_id_helper_entity) | trim }}"
   target_light_entity_ids: >
-    {% set ids = target_lights_input.entity_id if (target_lights_input is defined and target_lights_input.entity_id is defined) else target_lights_input %}
+    {% set ids = (target_lights_input.entity_id
+      if (target_lights_input is mapping and target_lights_input.entity_id is defined)
+      else target_lights_input) %}
     {{ ids if ids is list else ([ids] if ids is string else []) }}
 
 mode: restart
@@ -142,11 +145,11 @@ condition:
     state: "off"
 
 action:
-  # Capture the current light states into the selected scene entity
+  # Capture the current light states into a runtime scene based on the helper value
   - service: scene.create
     data:
-      scene_id: "{{ snapshot_scene_entity.split('.', 1)[1] }}"
-      snapshot_entities: {{ target_light_entity_ids }}
+      scene_id: "{{ snapshot_scene_id }}"
+      snapshot_entities: "{{ target_light_entity_ids | tojson }}"
 
   # Store the time of this automatic light change (used for restore window logic)
   - service: input_datetime.set_datetime

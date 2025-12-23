@@ -54,14 +54,14 @@ blueprint:
         entity:
           domain: scene
 
-    snapshot_scene:
-      name: Snapshot scene (scene entity)
+    snapshot_scene_id_helper:
+      name: Snapshot scene id helper (input_text)
       description: >
-        Same scene entity as used in the deactivation blueprint. It is overwritten
-        on each auto-off run to store a snapshot of current light states.
+        Select an input_text helper that contains the object_id (slug) of the runtime
+        snapshot scene created by the deactivation blueprint (e.g. "living_room_last_scene").
       selector:
         entity:
-          domain: scene
+          domain: input_text
 
     # --- Time windows ---
     night_end_time:
@@ -187,7 +187,8 @@ blueprint:
 variables:
   only_if_lights_off_var: !input only_if_lights_off
   state_light: !input state_check_light
-  snapshot_scene_id: !input snapshot_scene
+  snapshot_scene_id_helper_entity: !input snapshot_scene_id_helper
+  snapshot_scene_entity_id: "{{ 'scene.' ~ (states(snapshot_scene_id_helper_entity) | trim) }}"
   last_light_change_ts_entity: !input last_light_change_timestamp
   restore_window_min: !input restore_window
   recent_change_grace_s: !input recent_change_grace
@@ -252,7 +253,7 @@ action:
         sequence:
           - service: scene.turn_on
             target:
-              entity_id: !input snapshot_scene
+              entity_id: "{{ snapshot_scene_entity_id }}"
             data:
               transition: !input on_transition
           - service: input_datetime.set_datetime
