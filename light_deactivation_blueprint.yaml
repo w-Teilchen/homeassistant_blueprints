@@ -59,15 +59,14 @@ blueprint:
           mode: slider
 
     snapshot_scene:
-      name: Snapshot scene ID
+      name: Snapshot scene (scene entity)
       description: >
-        A unique scene ID (e.g., "snapshot_living_room") used to capture the
-        current light states before fading out. This allows the activation
-        blueprint to restore the exact light states if they are turned on again
-        shortly after the fade.
-      default: snapshot_room
+        An existing scene entity that will be overwritten on each run to store a
+        snapshot of the current light states. This makes it easier to inspect/debug
+        the snapshot via the UI.
       selector:
-        text: {}
+        entity:
+          domain: scene
 
     target_lights:
       name: Lights to snapshot and control
@@ -121,6 +120,7 @@ variables:
   off_transition: !input off_transition
   fade_flag_buffer: !input fade_flag_buffer
   target_lights_input: !input target_lights
+  snapshot_scene_entity: !input snapshot_scene
   target_light_entity_ids: >
     {% set ids = target_lights_input.entity_id if (target_lights_input is defined and target_lights_input.entity_id is defined) else target_lights_input %}
     {{ ids if ids is list else ([ids] if ids is string else []) }}
@@ -155,10 +155,10 @@ condition:
     state: "off"
 
 action:
-  # Capture the current light states as a snapshot scene
+  # Capture the current light states into the selected scene entity
   - service: scene.create
     data:
-      scene_id: !input snapshot_scene
+      scene_id: "{{ snapshot_scene_entity.split('.', 1)[1] }}"
       snapshot_entities: "{{ target_light_entity_ids }}"
 
   # Store the time of this automatic light change (used for restore window logic)

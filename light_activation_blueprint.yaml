@@ -131,14 +131,13 @@ blueprint:
         time: {}
 
     snapshot_scene:
-      name: Snapshot scene ID
+      name: Snapshot scene (scene entity)
       description: >
-        The same scene ID used in the deactivation blueprint (e.g.,
-        "snapshot_living_room"). When restoring because the lights were changed
-        recently, this scene will be used to restore the exact light states.
-      default: snapshot_room
+        Same scene entity as used in the deactivation blueprint. It is overwritten
+        on each auto-off run to store a snapshot of current light states.
       selector:
-        text: {}
+        entity:
+          domain: scene
 
     last_light_change_timestamp:
       name: Last light change timestamp (input_datetime)
@@ -249,7 +248,7 @@ action:
         sequence:
           - service: scene.turn_on
             target:
-              entity_id: "scene.{{ snapshot_scene_id }}"
+              entity_id: !input snapshot_scene
             data:
               transition: !input on_transition
           - service: input_datetime.set_datetime
